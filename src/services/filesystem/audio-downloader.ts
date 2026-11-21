@@ -23,6 +23,7 @@ import {
   extensionOf,
   internalUriFor,
   isSupportedExtension,
+  SUPPORTED_EXTENSIONS,
   fileExistsAsync,
   deleteFileAsync,
 } from './file-storage';
@@ -82,7 +83,7 @@ export async function downloadAudioFromUrlAsync(
   const extension = extensionOf(suggestedFileName);
   if (!isSupportedExtension(extension)) {
     throw new ImportError(
-      `Formato de audio no soportado: ${extension || '(sin extensión)'}. Formatos admitidos: .wav, .ogg, .flac`,
+      `Formato de audio no soportado: ${extension || '(sin extensión)'}. Formatos admitidos: ${SUPPORTED_EXTENSIONS.join(', ')}`,
       { url, fileName: suggestedFileName, extension }
     );
   }
