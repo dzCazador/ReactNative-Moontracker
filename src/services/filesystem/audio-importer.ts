@@ -21,7 +21,7 @@ import {
   isSupportedExtension,
   SUPPORTED_EXTENSIONS,
 } from './file-storage';
-import { readAudioMetadata, type AudioMetadata } from '@/lib/audio-metadata';
+import { readAudioMetadata, type AudioId3Metadata } from '@/lib/id3-metadata';
 import { logger } from '@/lib/logger';
 import { ImportError, DuplicateAudioError, AudioAssetInUseError } from '@/lib/errors';
 import { createAudioAssetInputSchema } from '@/lib/validation';
@@ -172,7 +172,7 @@ export async function importAudioFileAsync(params: {
   }
 
   // Intentar leer metadatos ID3 (título, artista, álbum, duración)
-  let id3Metadata: AudioMetadata | null = null;
+  let id3Metadata: AudioId3Metadata | null = null;
   try {
     id3Metadata = await readAudioMetadata(internalUri);
   } catch {
