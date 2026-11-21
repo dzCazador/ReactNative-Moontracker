@@ -109,7 +109,7 @@ export function SetlistItemRow({
           onPress={() => onDelete(item.id)}
         />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
