@@ -183,12 +183,13 @@ export default function SetlistsScreen() {
           </View>
         )}
 
-        <LargeButton
-          title="+ Nueva setlist"
-          style={styles.fab}
-          onPress={() => setCreateVisible(true)}
-        />
       </ScrollView>
+
+      <LargeButton
+        title="+ Nueva setlist"
+        style={styles.fab}
+        onPress={() => setCreateVisible(true)}
+      />
 
       {createVisible && (
         <CreateSetlistModal
