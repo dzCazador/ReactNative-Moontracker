@@ -129,7 +129,7 @@ export function readId3Metadata(bytes: Uint8Array): AudioId3Metadata | null {
   return readId3v1(bytes);
 }
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Wrapper that reads a file from a file:// URI and returns metadata
 export async function readAudioMetadata(fileUri: string): Promise<AudioId3Metadata | null> {

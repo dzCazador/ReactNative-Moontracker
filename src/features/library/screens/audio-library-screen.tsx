@@ -180,108 +180,110 @@ export default function AudioLibraryScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Biblioteca de audio</Text>
-        <Text style={styles.sub}>
-          Archivos importados y descargados, disponibles para pistas principales y loops
-          intermedios.
-        </Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Biblioteca de audio</Text>
+          <Text style={styles.sub}>
+            Archivos importados y descargados, disponibles para pistas principales y loops
+            intermedios.
+          </Text>
+        </View>
 
-      <View style={styles.filterBar}>
-        {(['ALL', 'MAIN_TRACK', 'INTERMEDIATE_LOOP'] as const).map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[styles.filterChip, filter === type && styles.filterChipActive]}
-            onPress={() => setFilter(type)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === type }}
-          >
-            <Text style={[styles.filterChipText, filter === type && styles.filterChipTextActive]}>
-              {type === 'ALL' ? 'Todos' : type === 'MAIN_TRACK' ? 'Principal' : 'Intermedio'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.filterBar}>
+          {(['ALL', 'MAIN_TRACK', 'INTERMEDIATE_LOOP'] as const).map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={[styles.filterChip, filter === type && styles.filterChipActive]}
+              onPress={() => setFilter(type)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === type }}
+            >
+              <Text style={[styles.filterChipText, filter === type && styles.filterChipTextActive]}>
+                {type === 'ALL' ? 'Todos' : type === 'MAIN_TRACK' ? 'Principal' : 'Intermedio'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <View style={styles.countBar}>
-        <Text style={styles.countText}>
-          {filteredAssets.length} archivo{filteredAssets.length !== 1 ? 's' : ''} ({typeLabel})
-        </Text>
-        <LargeButton title="+ Importar audio" style={styles.importButton} onPress={handleImport} />
-      </View>
+        <View style={styles.countBar}>
+          <Text style={styles.countText}>
+            {filteredAssets.length} archivo{filteredAssets.length !== 1 ? 's' : ''} ({typeLabel})
+          </Text>
+          <LargeButton title="+ Importar audio" style={styles.importButton} onPress={handleImport} />
+        </View>
 
-      {filteredAssets.length === 0 ? (
-        <EmptyState
-          title="No hay audio importado"
-          subtitle="Importa archivos de audio (.wav, .ogg, .flac) o descárgalos desde un enlace para usarlos como pistas principales o loops intermedios."
-          actionTitle="Importar audio"
-          onActionPress={handleImport}
-        />
-      ) : (
-        <FlatList
-          data={filteredAssets}
-          renderItem={({ item }) => {
-            const typeLabel = item.type === 'MAIN_TRACK' ? 'Pista principal' : 'Loop intermedio';
-            const duration = item.duration_ms
-              ? `${Math.floor(item.duration_ms / 60000)}:${String(
-                  Math.floor((item.duration_ms % 60000) / 1000)
-                ).padStart(2, '0')}`
-              : '--:--';
-            const size =
-              item.file_size_bytes != null
-                ? `${(item.file_size_bytes / 1024 / 1024).toFixed(2)} MB`
-                : '--';
-            const origin = item.source_url ? 'Descarga' : 'Local';
-            return (
-              <Card key={item.id} style={styles.row}>
-                <View style={styles.rowContent}>
-                  <View style={styles.rowInfo}>
-                    <View style={styles.rowTypeBadge}>
-                      <Text style={styles.rowTypeBadgeText}>
-                        {item.type === 'MAIN_TRACK' ? 'M' : 'L'}
-                      </Text>
+        {filteredAssets.length === 0 ? (
+          <EmptyState
+            title="No hay audio importado"
+            subtitle="Importa archivos de audio (.wav, .ogg, .flac) o descárgalos desde un enlace para usarlos como pistas principales o loops intermedios."
+            actionTitle="Importar audio"
+            onActionPress={handleImport}
+          />
+        ) : (
+          <FlatList
+            data={filteredAssets}
+            renderItem={({ item }) => {
+              const typeLabel = item.type === 'MAIN_TRACK' ? 'Pista principal' : 'Loop intermedio';
+              const duration = item.duration_ms
+                ? `${Math.floor(item.duration_ms / 60000)}:${String(
+                    Math.floor((item.duration_ms % 60000) / 1000)
+                  ).padStart(2, '0')}`
+                : '--:--';
+              const size =
+                item.file_size_bytes != null
+                  ? `${(item.file_size_bytes / 1024 / 1024).toFixed(2)} MB`
+                  : '--';
+              const origin = item.source_url ? 'Descarga' : 'Local';
+              return (
+                <Card key={item.id} style={styles.row}>
+                  <View style={styles.rowContent}>
+                    <View style={styles.rowInfo}>
+                      <View style={styles.rowTypeBadge}>
+                        <Text style={styles.rowTypeBadgeText}>
+                          {item.type === 'MAIN_TRACK' ? 'M' : 'L'}
+                        </Text>
+                      </View>
+                      <View style={styles.rowTexts}>
+                        <Text style={styles.rowTitle} numberOfLines={1}>
+                          {item.display_name}
+                        </Text>
+                        <Text style={styles.rowMeta}>
+                          {typeLabel} • {origin} • {duration} • {size}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.rowTexts}>
-                      <Text style={styles.rowTitle} numberOfLines={1}>
-                        {item.display_name}
-                      </Text>
-                      <Text style={styles.rowMeta}>
-                        {typeLabel} • {origin} • {duration} • {size}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.rowActions}>
-                    {item.is_missing ? (
+                    <View style={styles.rowActions}>
+                      {item.is_missing ? (
+                        <LargeButton
+                          title="Relink"
+                          style={styles.relinkButton}
+                          onPress={() => handleRelink(item)}
+                        />
+                      ) : null}
                       <LargeButton
-                        title="Relink"
-                        style={styles.relinkButton}
-                        onPress={() => handleRelink(item)}
+                        title="Eliminar"
+                        style={[styles.dangerButton, styles.iconButton]}
+                        onPress={() => handleDeleteAsset(item)}
                       />
-                    ) : null}
-                    <LargeButton
-                      title="Eliminar"
-                      style={[styles.dangerButton, styles.iconButton]}
-                      onPress={() => handleDeleteAsset(item)}
-                    />
+                    </View>
                   </View>
-                </View>
-                {item.is_missing && (
-                  <View style={styles.rowMissingBanner}>
-                    <Text style={styles.rowMissingText}>
-                      ⚠ Archivo faltante en disco. Usa &quot;Relink&quot; para volver a vincularlo.
-                    </Text>
-                  </View>
-                )}
-              </Card>
-            );
-          }}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          scrollEnabled={false}
-        />
-      )}
+                  {item.is_missing && (
+                    <View style={styles.rowMissingBanner}>
+                      <Text style={styles.rowMissingText}>
+                        ⚠ Archivo faltante en disco. Usa &quot;Relink&quot; para volver a vincularlo.
+                      </Text>
+                    </View>
+                  )}
+                </Card>
+              );
+            }}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            scrollEnabled={false}
+          />
+        )}
+      </ScrollView>
 
       <LargeButton title="+ Importar audio" style={styles.fab} onPress={handleImport} />
 
@@ -308,7 +310,7 @@ export default function AudioLibraryScreen() {
           }}
         />
       )}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -316,10 +318,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.dark.background,
-    padding: tokens.spacing.md,
   },
   content: {
-    paddingBottom: tokens.spacing.xl,
+    padding: tokens.spacing.md,
+    paddingBottom: 160,
   },
   skeletonWrapper: {
     gap: tokens.spacing.md,
@@ -464,7 +466,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: tokens.spacing.lg,
     right: tokens.spacing.lg,
-    minWidth: 170,
+    minWidth: 140,
     backgroundColor: colors.dark.accent,
   },
   errorBlock: {

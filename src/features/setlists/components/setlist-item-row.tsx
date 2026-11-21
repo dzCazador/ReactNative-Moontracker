@@ -58,28 +58,31 @@ export function SetlistItemRow({
   const mainLabel = item.main_audio?.display_name ?? 'Pista principal faltante';
 
   return (
-    <TouchableOpacity
+    <View
       style={[styles.container, style, mainMissing && styles.mainMissing]}
-      onPress={() => onEdit(item)}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.song_title}, posición ${position}, ${mainLabel}`}
     >
-      <View style={styles.positionBadge}>
-        <Text style={styles.positionText}>{position}</Text>
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
-          {item.song_title}
-        </Text>
-        <View style={styles.metaRow}>
-          {item.artist && <Text style={styles.meta}>{item.artist}</Text>}
-          <Text style={[styles.meta, styles.metaMain]}>🎵 {mainLabel}</Text>
-          <Text style={[styles.meta, resolution.audio == null && styles.metaWarn]}>
-            {intermediateMissing ? '⚠' : '•'} {intermediateLabel}
-          </Text>
+      <TouchableOpacity
+        style={styles.rowTapArea}
+        onPress={() => onEdit(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.song_title}, posición ${position}, ${mainLabel}`}
+      >
+        <View style={styles.positionBadge}>
+          <Text style={styles.positionText}>{position}</Text>
         </View>
-      </View>
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>
+            {item.song_title}
+          </Text>
+          <View style={styles.metaRow}>
+            {item.artist && <Text style={styles.meta}>{item.artist}</Text>}
+            <Text style={[styles.meta, styles.metaMain]}>🎵 {mainLabel}</Text>
+            <Text style={[styles.meta, resolution.audio == null && styles.metaWarn]}>
+              {intermediateMissing ? '⚠' : '•'} {intermediateLabel}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
       <View style={styles.actions}>
         {position > 1 && (
           <LargeButton
@@ -121,6 +124,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dark.surfaceElevated,
     minHeight: tokens.touchTarget.comfortable,
     gap: tokens.spacing.md,
+  },
+  rowTapArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: tokens.spacing.md,
+    minWidth: 0,
   },
   mainMissing: {
     borderColor: colors.dark.warning,

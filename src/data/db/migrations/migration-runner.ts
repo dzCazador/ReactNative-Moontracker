@@ -7,6 +7,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { SCHEMA_VERSION } from '../schema/tables';
 import { INITIAL_MIGRATION } from './0001-initial-schema';
+import { ADD_ARTIST_ALBUM_MIGRATION } from './0002-add-artist-album';
 
 export type Migration = {
   version: number;
@@ -14,7 +15,7 @@ export type Migration = {
   up: string;
 };
 
-export const MIGRATIONS: Migration[] = [INITIAL_MIGRATION];
+export const MIGRATIONS: Migration[] = [INITIAL_MIGRATION, ADD_ARTIST_ALBUM_MIGRATION];
 
 /**
  * Crea (si no existe) la tabla de seguimiento de versiones de migraciones.

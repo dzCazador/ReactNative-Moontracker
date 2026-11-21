@@ -16,7 +16,7 @@
  * PRAGMA foreign_keys = ON debe ejecutarse al abrir la base de datos (ver connection.ts).
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const TABLE_AUDIO_ASSETS = 'audio_assets';
 export const TABLE_SETLISTS = 'setlists';
@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS audio_assets (
   sample_rate INTEGER,
   channels INTEGER,
   loudness_hint_db REAL,
+  artist TEXT,
+  album TEXT,
   is_missing INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL

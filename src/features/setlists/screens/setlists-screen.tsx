@@ -113,80 +113,82 @@ export default function SetlistsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Setlists</Text>
-        <Text style={styles.sub}>
-          Gestiona tus setlists de actuaciones. Crea una nueva para empezar.
-        </Text>
-      </View>
-
-      {setlists.length === 0 ? (
-        <EmptyState
-          title="No hay setlists aún"
-          subtitle="Crea tu primera setlist para agregar canciones, asignar pistas principales y preparar tu actuación."
-          actionTitle="Nueva setlist"
-          onActionPress={() => setCreateVisible(true)}
-        />
-      ) : (
-        <View style={styles.list}>
-          {setlists.map((setlist) => {
-            const updated = new Date(setlist.updated_at).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            });
-            return (
-              <Card key={setlist.id} style={styles.row} elevated>
-                <View style={styles.rowContent}>
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {setlist.name}
-                    </Text>
-                    {setlist.description && (
-                      <Text style={styles.rowSub} numberOfLines={1}>
-                        {setlist.description}
-                      </Text>
-                    )}
-                    <Text style={styles.rowMeta}>
-                      {setlist.item_count} canción{setlist.item_count !== 1 ? 's' : ''} •
-                      {setlist.has_missing_audio ? 'Audio faltante' : 'OK'} • Actualizado {updated}
-                    </Text>
-                  </View>
-                  <View style={styles.rowActions}>
-                    <LargeButton
-                      title="Abrir"
-                      style={[styles.actionButton, { marginRight: 6 }]}
-                      onPress={() =>
-                        navigation.navigate('SetlistDetail', { setlistId: setlist.id })
-                      }
-                    />
-                    <LargeButton
-                      title="Duplicar"
-                      style={styles.actionButton}
-                      onPress={() => handleDuplicate(setlist.id, `Copia de ${setlist.name}`)}
-                    />
-                    <LargeButton
-                      title="Eliminar"
-                      style={[styles.actionButton, styles.deleteButton]}
-                      onPress={() => {
-                        setSetlistToDelete(setlist.id);
-                        setDeleteConfirmVisible(true);
-                      }}
-                    />
-                  </View>
-                </View>
-              </Card>
-            );
-          })}
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Setlists</Text>
+          <Text style={styles.sub}>
+            Gestiona tus setlists de actuaciones. Crea una nueva para empezar.
+          </Text>
         </View>
-      )}
 
-      <LargeButton
-        title="+ Nueva setlist"
-        style={styles.fab}
-        onPress={() => setCreateVisible(true)}
-      />
+        {setlists.length === 0 ? (
+          <EmptyState
+            title="No hay setlists aún"
+            subtitle="Crea tu primera setlist para agregar canciones, asignar pistas principales y preparar tu actuación."
+            actionTitle="Nueva setlist"
+            onActionPress={() => setCreateVisible(true)}
+          />
+        ) : (
+          <View style={styles.list}>
+            {setlists.map((setlist) => {
+              const updated = new Date(setlist.updated_at).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              });
+              return (
+                <Card key={setlist.id} style={styles.row} elevated>
+                  <View style={styles.rowContent}>
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle} numberOfLines={1}>
+                        {setlist.name}
+                      </Text>
+                      {setlist.description && (
+                        <Text style={styles.rowSub} numberOfLines={1}>
+                          {setlist.description}
+                        </Text>
+                      )}
+                      <Text style={styles.rowMeta}>
+                        {setlist.item_count} canción{setlist.item_count !== 1 ? 's' : ''} •
+                        {setlist.has_missing_audio ? 'Audio faltante' : 'OK'} • Actualizado {updated}
+                      </Text>
+                    </View>
+                    <View style={styles.rowActions}>
+                      <LargeButton
+                        title="Abrir"
+                        style={[styles.actionButton, { marginRight: 6 }]}
+                        onPress={() =>
+                          navigation.navigate('SetlistDetail', { setlistId: setlist.id })
+                        }
+                      />
+                      <LargeButton
+                        title="Duplicar"
+                        style={styles.actionButton}
+                        onPress={() => handleDuplicate(setlist.id, `Copia de ${setlist.name}`)}
+                      />
+                      <LargeButton
+                        title="Eliminar"
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => {
+                          setSetlistToDelete(setlist.id);
+                          setDeleteConfirmVisible(true);
+                        }}
+                      />
+                    </View>
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
+        <LargeButton
+          title="+ Nueva setlist"
+          style={styles.fab}
+          onPress={() => setCreateVisible(true)}
+        />
+      </ScrollView>
 
       {createVisible && (
         <CreateSetlistModal
@@ -213,7 +215,7 @@ export default function SetlistsScreen() {
           }}
         />
       )}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -221,10 +223,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.dark.background,
-    padding: tokens.spacing.md,
   },
   content: {
-    paddingBottom: tokens.spacing.xl,
+    padding: tokens.spacing.md,
+    paddingBottom: 160,
   },
   skeletonWrapper: {
     gap: tokens.spacing.md,
@@ -263,7 +265,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: tokens.spacing.lg,
     right: tokens.spacing.lg,
-    minWidth: 170,
+    minWidth: 140,
     backgroundColor: colors.dark.accent,
   },
   row: {
