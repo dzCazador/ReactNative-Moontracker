@@ -125,10 +125,41 @@ export class LivePlaybackController {
       this.nextItemId = items.length > 1 ? items[1].id : null;
       this.mainEndedHandled = false;
 
+      // Ensure engine is initialized before loading
+      const engineState = this.engine.getState();
+      if (!engineState.isSetup && !engineState.setupError) {
+        try {
+          await this.engine.setup();
+          logger.audio('[LivePlaybackController] engine setup completed');
+        } catch (error) {
+          this.setErrorState(
+            'INIT_FAILED',
+            `Engine setup failed: ${String(error)}`,
+            false,
+            [],
+            { original: String(error) }
+          );
+          this.setPhase('error');
+          this.publishStatus();
+          return;
+        }
+      }
+
       try {
         await this.prepareCurrentMain();
       } catch (error) {
         this.handleLoadError(items[0], error as Error);
+        // Don't continue to 'prepared' phase if load failed
+        this.publishStatus();
+        this.audioTracerLog('LOAD_SETLIST', 'idle', 'error', items[0].id, null, 'error');
+        const latency = MONOTONIC_NOW() - start;
+        logger.audio('[LivePlaybackController] loadSetlist failed', {
+          setlistId: setlist.id,
+          itemCount: items.length,
+          latencyMs: latency,
+          error: String(error),
+        });
+        return;
       }
 
       this.setPhase('prepared');
@@ -174,8 +205,38 @@ export class LivePlaybackController {
       const prepared = this.prepared;
       if (!prepared) return;
       const currentIndex = prepared.currentIndex;
-      const nextIndex = currentIndex + 1;
       const items = prepared.items;
+
+      // Special case: first trigger from 'prepared' state plays the current
+      // song (index 0) instead of skipping to the next one.
+      if (this.phase === 'prepared' || this.phase === 'idle' || this.phase === 'silent-waiting') {
+        const current = items[currentIndex];
+        try {
+          await this.loadAndPlayMain(current);
+        } catch (error) {
+          this.handleLoadError(current, error as Error);
+          return;
+        }
+        this.setPhase('playing-main');
+        this.publishStatus();
+        const latency = MONOTONIC_NOW() - start;
+        this.audioTracerLog(
+          'TRIGGER_FIRST',
+          this.phase,
+          'playing-main',
+          current.id,
+          'A',
+          'ok',
+          latency
+        );
+        logger.audio('[LivePlaybackController] triggerNext (first play)', {
+          itemId: current.id,
+          latencyMs: latency,
+        });
+        return;
+      }
+
+      const nextIndex = currentIndex + 1;
       const isLast = nextIndex >= items.length;
 
       if (isLast) {
@@ -407,6 +468,22 @@ export class LivePlaybackController {
     payload?: Record<string, unknown>;
   }): void {
     switch (event.type) {
+      case 'progress': {
+        // Update position/duration in the store
+        const position = event.payload?.position as number;
+        const duration = event.payload?.duration as number | null;
+        if (position != null || duration != null) {
+          const state = useLivePlaybackStore.getState();
+          const currentStatus = state.status;
+          const newStatus = {
+            ...currentStatus,
+            positionSec: position ?? currentStatus.positionSec,
+            durationSec: duration ?? currentStatus.durationSec,
+          };
+          state.setStatus(newStatus);
+        }
+        break;
+      }
       case 'playback-state-changed': {
         const deck = event.deck ?? 'A';
         const state = this.engine.getState();

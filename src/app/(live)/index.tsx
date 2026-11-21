@@ -1,5 +1,5 @@
-import LivePlaceholder from '@/features/live/screens/live-placeholder';
+import LiveScreen from '@/features/live/screens/live-screen';
 
 export default function LiveIndex() {
-  return <LivePlaceholder />;
+  return <LiveScreen />;
 }

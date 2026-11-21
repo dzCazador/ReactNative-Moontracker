@@ -9,7 +9,7 @@ import LibraryScreen from '@/app/(admin)/library';
 import SetlistsScreen from '@/app/(admin)/setlists';
 import SetlistDetailScreen from '@/app/(admin)/setlist-detail';
 import SettingsScreen from '@/app/(admin)/settings';
-import LivePlaceholder from '@/features/live/screens/live-placeholder';
+import LiveScreen from '@/features/live/screens/live-screen';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/app/(admin)/param-list';
 
@@ -30,7 +30,7 @@ export default function App() {
         <Stack.Screen name="Setlists" component={SetlistsScreen} />
         <Stack.Screen name="SetlistDetail" component={SetlistDetailScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Live" component={LivePlaceholder} />
+        <Stack.Screen name="Live" component={LiveScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -161,24 +161,32 @@ export class ExpoAudioAdapter implements AudioEngine {
       setInterval(() => {
         const player = this.getPlayer(deck);
         if (!player) return;
-        const positionSec = Math.max(0, player.currentTime ?? 0);
-        const durationSec = player.duration > 0 ? player.duration : null;
-        this.setDeckState(deck, { positionSec, durationSec });
-        this.emit('progress', { position: positionSec, duration: durationSec }, deck);
 
-        // Detect track end for deck A (one-shot) -> emit track-ended
-        if (
-          deck === 'A' &&
-          durationSec != null &&
-          player.isLoaded &&
-          !player.paused &&
-          positionSec >= durationSec - 0.5
-        ) {
-          this.stopPositionPolling(deck);
-          this.setDeckState(deck, { state: 'stopped' });
-          this.emit('track-ended', undefined, deck);
+        try {
+          // Read currentTime and duration directly from player properties
+          const positionSec = Math.max(0, player.currentTime ?? 0);
+          const durationSec = player.duration > 0 ? player.duration : null;
+
+          this.setDeckState(deck, { positionSec, durationSec });
+          this.emit('progress', { position: positionSec, duration: durationSec }, deck);
+
+          // Detect track end for deck A (one-shot) -> emit track-ended
+          if (
+            deck === 'A' &&
+            durationSec != null &&
+            durationSec > 0 &&
+            player.isLoaded &&
+            !player.playing &&
+            positionSec >= durationSec - 1
+          ) {
+            this.stopPositionPolling(deck);
+            this.setDeckState(deck, { state: 'stopped' });
+            this.emit('track-ended', undefined, deck);
+          }
+        } catch (error) {
+          logger.warn('[ExpoAudioAdapter] poll error', { error: String(error) });
         }
-      }, 500)
+      }, 250) // Poll every 250ms for more accurate detection
     );
   }
 
@@ -206,7 +214,7 @@ export class ExpoAudioAdapter implements AudioEngine {
       });
 
       for (const deck of ['A', 'B'] as DeckId[]) {
-        const player = createAudioPlayer(audioSourceFromTrack({} as unknown as AudioTrack));
+        const player = createAudioPlayer(null);
         player.loop = deck === 'B';
         this.players.set(deck, player);
       }
@@ -271,7 +279,8 @@ export class ExpoAudioAdapter implements AudioEngine {
     }
 
     try {
-      player.replace({ uri: track.uri });
+      logger.audio('[ExpoAudioAdapter] load start', { deck, trackId: track.id, uri: track.uri });
+      player.replace(track.uri as any);
       player.loop = deck === 'B' && track.loop;
       this.activeDeck = deck;
       this.setDeckState(deck, {
@@ -283,11 +292,12 @@ export class ExpoAudioAdapter implements AudioEngine {
       const otherDeck = deck === 'A' ? 'B' : 'A';
       this.setDeckState(otherDeck, { state: 'idle' });
 
-      logger.audio('[ExpoAudioAdapter] load', { deck, trackId: track.id, uri: track.uri });
+      logger.audio('[ExpoAudioAdapter] load completed', { deck, trackId: track.id });
       this.emit('track-changed', { trackId: track.id, deck, uri: track.uri }, deck, track.id);
 
       this.startPositionPolling(deck);
     } catch (error) {
+      logger.audio('[ExpoAudioAdapter] load error', { deck, trackId: track.id, error: String(error) });
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });
       this.setError(engineError);
