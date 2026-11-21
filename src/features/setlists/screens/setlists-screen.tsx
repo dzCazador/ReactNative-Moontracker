@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: tokens.spacing.lg,
-    right: tokens.spacing.lg,
+    left: tokens.spacing.lg,
     minWidth: 140,
     backgroundColor: colors.dark.accent,
   },
