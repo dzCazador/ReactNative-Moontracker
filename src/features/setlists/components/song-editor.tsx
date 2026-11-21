@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { AudioAsset, SetlistItemWithAudio, IntermediateMode } from '@/data/models';
 import { colors } from '@/shared/theme/colors';
 import { tokens } from '@/shared/theme/tokens';
@@ -127,7 +127,8 @@ export function SongEditor({
       <View style={styles.backdrop} />
       <View style={styles.content}>
         <Card style={styles.card}>
-          <View style={styles.header}>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.header}>
             <Text style={styles.title}>{isNew ? 'Nueva canción' : 'Editar canción'}</Text>
             <Text style={styles.close} onPress={onCancel}>
               Cerrar
@@ -235,6 +236,7 @@ export function SongEditor({
               disabled={submitButtonDisabled}
             />
           </View>
+          </ScrollView>
         </Card>
       </View>
 
@@ -277,6 +279,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: tokens.spacing.md,
+  },
+  scrollContent: {
+    paddingBottom: tokens.spacing.xl,
+    gap: tokens.spacing.md,
   },
   card: {
     backgroundColor: colors.dark.surfaceElevated,
