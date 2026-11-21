@@ -22,6 +22,8 @@ export interface AudioAsset {
   sample_rate: number | null;
   channels: number | null;
   loudness_hint_db: number | null;
+  artist: string | null;
+  album: string | null;
   is_missing: boolean;
   created_at: string;
   updated_at: string;
@@ -41,6 +43,8 @@ export interface CreateAudioAssetInput {
   sample_rate?: number | null;
   channels?: number | null;
   loudness_hint_db?: number | null;
+  artist?: string | null;
+  album?: string | null;
 }
 
 export interface UpdateAudioAssetInput {
@@ -58,5 +62,7 @@ export interface UpdateAudioAssetInput {
   sample_rate?: number | null;
   channels?: number | null;
   loudness_hint_db?: number | null;
+  artist?: string | null;
+  album?: string | null;
   is_missing?: boolean;
 }

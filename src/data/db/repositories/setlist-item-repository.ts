@@ -339,6 +339,8 @@ export class SetlistItemRepository {
       channels: row[`${prefix}channels`] == null ? null : Number(row[`${prefix}channels`]),
       loudness_hint_db:
         row[`${prefix}loudness_hint_db`] == null ? null : Number(row[`${prefix}loudness_hint_db`]),
+      artist: (row[`${prefix}artist`] as string | null) ?? null,
+      album: (row[`${prefix}album`] as string | null) ?? null,
       is_missing: Boolean(row[`${prefix}is_missing`]),
       created_at: String(row[`${prefix}created_at`]),
       updated_at: String(row[`${prefix}updated_at`]),

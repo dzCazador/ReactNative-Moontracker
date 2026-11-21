@@ -88,7 +88,7 @@ function mapExpoState(status: AudioStatus): DeckPlayerState {
   if (!status.isLoaded) return 'idle';
   if (status.isBuffering) return 'loading';
   if (status.playing) return 'playing';
-  if (status.paused) return 'paused';
+  if (!status.playing && status.isLoaded) return 'paused';
   return 'stopped';
 }
 

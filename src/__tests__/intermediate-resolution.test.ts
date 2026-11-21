@@ -20,6 +20,8 @@ const audio = (id: string): AudioAsset => ({
   sample_rate: null,
   channels: null,
   loudness_hint_db: null,
+  artist: null,
+  album: null,
   is_missing: false,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',

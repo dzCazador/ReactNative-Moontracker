@@ -36,6 +36,8 @@ export class AudioAssetRepository {
       sample_rate: row.sample_rate == null ? null : Number(row.sample_rate),
       channels: row.channels == null ? null : Number(row.channels),
       loudness_hint_db: row.loudness_hint_db == null ? null : Number(row.loudness_hint_db),
+      artist: (row.artist as string | null) ?? null,
+      album: (row.album as string | null) ?? null,
       is_missing: Boolean(row.is_missing),
       created_at: String(row.created_at),
       updated_at: String(row.updated_at),
@@ -52,9 +54,9 @@ export class AudioAssetRepository {
         `INSERT INTO audio_assets (
           id, type, display_name, original_filename, internal_uri, external_source_uri,
           source_url, file_extension, mime_type, duration_ms, file_size_bytes,
-          sample_rate, channels, loudness_hint_db, is_missing, created_at, updated_at
+          sample_rate, channels, loudness_hint_db, artist, album, is_missing, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           input.type,
@@ -70,6 +72,8 @@ export class AudioAssetRepository {
           input.sample_rate ?? null,
           input.channels ?? null,
           input.loudness_hint_db ?? null,
+          input.artist ?? null,
+          input.album ?? null,
           0,
           now,
           now,
@@ -95,6 +99,8 @@ export class AudioAssetRepository {
       sample_rate: input.sample_rate ?? null,
       channels: input.channels ?? null,
       loudness_hint_db: input.loudness_hint_db ?? null,
+      artist: input.artist ?? null,
+      album: input.album ?? null,
       is_missing: false,
       created_at: now,
       updated_at: now,
@@ -151,6 +157,8 @@ export class AudioAssetRepository {
     setField('sample_rate', input.sample_rate);
     setField('channels', input.channels);
     setField('loudness_hint_db', input.loudness_hint_db);
+    setField('artist', input.artist);
+    setField('album', input.album);
     setField('is_missing', input.is_missing ? 1 : 0);
     updates.push('updated_at = ?');
     params.push(now);

@@ -73,6 +73,13 @@ export function SongEditor({
   const handleSelectMain = (asset: AudioAsset) => {
     setMainAudioId(asset.id);
     setMainPickerVisible(false);
+    // Pre-rellenar título y artista desde los metadatos del asset si están vacíos
+    if (!songTitle.trim() && asset.display_name) {
+      setSongTitle(asset.display_name);
+    }
+    if (!artist.trim() && asset.artist) {
+      setArtist(asset.artist);
+    }
   };
 
   const handleSelectIntermediate = (asset: AudioAsset) => {

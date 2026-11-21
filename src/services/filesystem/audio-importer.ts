@@ -21,6 +21,7 @@ import {
   isSupportedExtension,
   SUPPORTED_EXTENSIONS,
 } from './file-storage';
+import { readAudioMetadata, type AudioMetadata } from '@/lib/audio-metadata';
 import { logger } from '@/lib/logger';
 import { ImportError, DuplicateAudioError, AudioAssetInUseError } from '@/lib/errors';
 import { createAudioAssetInputSchema } from '@/lib/validation';
@@ -170,20 +171,33 @@ export async function importAudioFileAsync(params: {
     });
   }
 
+  // Intentar leer metadatos ID3 (título, artista, álbum, duración)
+  let id3Metadata: AudioMetadata | null = null;
+  try {
+    id3Metadata = await readAudioMetadata(internalUri);
+  } catch {
+    // Si falla la lectura de metadatos, continuamos sin ellos
+  }
+
+  const displayName = id3Metadata?.title ?? originalFilename;
+  const durationMs = id3Metadata?.duration != null ? Math.round(id3Metadata.duration * 1000) : null;
+
   const input = {
     type: source,
-    display_name: originalFilename,
+    display_name: displayName,
     original_filename: originalFilename,
     internal_uri: internalUri,
     external_source_uri: null,
     source_url: null,
     file_extension: extension,
     mime_type: mimeType ?? null,
-    duration_ms: null,
+    duration_ms: durationMs,
     file_size_bytes: fileSize ?? null,
     sample_rate: null,
     channels: null,
     loudness_hint_db: null,
+    artist: id3Metadata?.artist ?? null,
+    album: id3Metadata?.album ?? null,
   };
 
   const parsed = createAudioAssetInputSchema.safeParse(input);

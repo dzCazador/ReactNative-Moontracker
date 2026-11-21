@@ -50,6 +50,8 @@ export const createAudioAssetInputSchema = z
     sample_rate: nullablePositiveInt.optional(),
     channels: nullablePositiveInt.optional(),
     loudness_hint_db: z.number().nullable().optional(),
+    artist: nullableString.optional(),
+    album: nullableString.optional(),
   })
   .strict();
 
