@@ -2,7 +2,7 @@ import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
   name: 'MoonTracker',
-  slug: 'moonTracker',
+  slug: 'backTracker',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
