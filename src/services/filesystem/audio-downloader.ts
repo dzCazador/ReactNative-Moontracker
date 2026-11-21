@@ -57,10 +57,21 @@ function fileNameFromUrl(url: string): string {
   try {
     const parsed = new URL(url);
     const last = parsed.pathname.slice(parsed.pathname.lastIndexOf('/') + 1) || 'audio';
-    return last.split('?')[0].split('#')[0] || 'audio';
+    const cleaned = last.split('?')[0].split('#')[0] || 'audio';
+    // Si el nombre no tiene punto (ej. Mega URLs: /file/ID#KEY), retornar sin extensión
+    return cleaned.includes('.') ? cleaned : 'audio';
   } catch {
     return 'audio';
   }
+}
+
+/**
+ * Detecta si la URL es de un servicio que no expone la extensión en el path
+ * (Mega, Google Drive). Retorna true para these services.
+ */
+function isExtensionLessService(url: string): boolean {
+  const lower = url.toLowerCase();
+  return lower.includes('mega.nz') || lower.includes('drive.google.com');
 }
 
 export async function downloadAudioFromUrlAsync(
@@ -80,7 +91,13 @@ export async function downloadAudioFromUrlAsync(
   }
 
   const suggestedFileName = fileName ?? fileNameFromUrl(url);
-  const extension = extensionOf(suggestedFileName);
+  let extension = extensionOf(suggestedFileName);
+
+  // Si no hay extensión y es un servicio sin extensión en URL, usar .mp3 como fallback
+  if (!isSupportedExtension(extension) && isExtensionLessService(url)) {
+    extension = '.mp3';
+  }
+
   if (!isSupportedExtension(extension)) {
     throw new ImportError(
       `Formato de audio no soportado: ${extension || '(sin extensión)'}. Formatos admitidos: ${SUPPORTED_EXTENSIONS.join(', ')}`,
@@ -159,8 +176,8 @@ export async function downloadAudioFromUrlAsync(
   const repo = new AudioAssetRepository();
   const input = {
     type: source,
-    display_name: suggestedFileName,
-    original_filename: suggestedFileName,
+    display_name: finalFileName,
+    original_filename: finalFileName,
     internal_uri: internalUri,
     external_source_uri: url,
     source_url: url,

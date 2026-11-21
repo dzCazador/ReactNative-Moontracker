@@ -106,6 +106,7 @@ export default function SetlistsScreen() {
         <LargeButton
           title="+ Nueva setlist"
           style={styles.fab}
+          light
           onPress={() => setCreateVisible(true)}
         />
       </ScrollView>
@@ -188,6 +189,7 @@ export default function SetlistsScreen() {
       <LargeButton
         title="+ Nueva setlist"
         style={styles.fab}
+        light
         onPress={() => setCreateVisible(true)}
       />
 
@@ -384,7 +386,7 @@ function CreateSetlistModal({
           />
           <View style={styles.modalButtons}>
             <LargeButton title="Cancelar" style={styles.modalCancel} onPress={onCancel} />
-            <LargeButton title="Crear" style={styles.modalCreate} onPress={onCreate} />
+            <LargeButton title="Crear" style={styles.modalCreate} light onPress={onCreate} />
           </View>
         </View>
       </View>

@@ -3,7 +3,6 @@ import { colors } from '@/shared/theme/colors';
 import { tokens } from '@/shared/theme/tokens';
 import type { SetlistItemWithAudio, AudioAsset } from '@/data/models';
 import { resolveEffectiveIntermediateAudio } from '@/lib/intermediate-resolution';
-import { LargeButton } from '@/shared/components/large-button';
 
 interface SetlistItemRowProps {
   item: SetlistItemWithAudio;
@@ -41,106 +40,113 @@ export function SetlistItemRow({
   });
 
   const mainMissing = item.main_audio?.is_missing ?? true;
-  const intermediateMissing =
-    resolution.audio != null ? resolution.audio.is_missing : resolution.reason === 'NONE';
 
-  const intermediateLabel = ((): string => {
+  // Texto de intermedio compacto
+  const loopText = (() => {
     if (resolution.reason === 'SILENCE') return 'Sin intermedio';
-    if (resolution.reason === 'CUSTOM')
-      return `Intermedio: ${resolution.audio?.display_name ?? '—'}`;
-    if (resolution.reason === 'SETLIST_DEFAULT')
-      return `Predeterminado setlist: ${resolution.audio?.display_name ?? '—'}`;
-    if (resolution.reason === 'GLOBAL_DEFAULT')
-      return `Predeterminado global: ${resolution.audio?.display_name ?? '—'}`;
-    return 'Sin intermedio configurado';
+    if (resolution.reason === 'CUSTOM') return 'Intermedio propio';
+    if (resolution.reason === 'SETLIST_DEFAULT') return 'Intermedio setlist';
+    if (resolution.reason === 'GLOBAL_DEFAULT') return 'Intermedio global';
+    return 'Sin intermedio';
   })();
 
-  const mainLabel = item.main_audio?.display_name ?? 'Pista principal faltante';
+  const loopWarning = resolution.audio ? resolution.audio.is_missing : false;
 
   return (
-    <View
+    <TouchableOpacity
       style={[styles.container, style, mainMissing && styles.mainMissing]}
+      onPress={() => onEdit(item)}
+      onLongPress={() => onEdit(item)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Tema ${position}: ${item.song_title}`}
     >
-      <TouchableOpacity
-        style={styles.rowTapArea}
-        onPress={() => onEdit(item)}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.song_title}, posición ${position}, ${mainLabel}`}
-      >
+      {/* Fila 1: Número + Icono + Título + Acciones */}
+      <View style={styles.rowTop}>
         <View style={styles.positionBadge}>
           <Text style={styles.positionText}>{position}</Text>
         </View>
-        <View style={styles.info}>
+
+        <View style={styles.musicIcon}>
+          <Text style={styles.musicIconText}>♪</Text>
+        </View>
+
+        <View style={styles.titleArea}>
           <Text style={styles.title} numberOfLines={1}>
             {item.song_title}
           </Text>
-          <View style={styles.metaRow}>
-            {item.artist && <Text style={styles.meta}>{item.artist}</Text>}
-            <Text style={[styles.meta, styles.metaMain]}>🎵 {mainLabel}</Text>
-            <Text style={[styles.meta, resolution.audio == null && styles.metaWarn]}>
-              {intermediateMissing ? '⚠' : '•'} {intermediateLabel}
+          {item.artist ? (
+            <Text style={styles.artist} numberOfLines={1}>
+              {item.artist}
             </Text>
-          </View>
+          ) : null}
         </View>
-      </TouchableOpacity>
-      <View style={styles.actions}>
-        {position > 1 && (
-          <LargeButton
-            title="▲"
-            style={styles.moveButton}
-            onPress={() => onMoveUp(item.id)}
-            accessibilityLabel={`Subir ${item.song_title}`}
-          />
-        )}
-        <LargeButton
-          title="▼"
-          style={styles.moveButton}
-          onPress={() => onMoveDown(item.id)}
-          accessibilityLabel={`Bajar ${item.song_title}`}
-        />
-        <LargeButton
-          title="Editar"
-          style={[styles.actionButton, { marginLeft: 4 }]}
-          onPress={() => onEdit(item)}
-        />
-        <LargeButton
-          title="Eliminar"
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => onDelete(item.id)}
-        />
+
+        <View style={styles.actions}>
+          {position > 1 && (
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => onMoveUp(item.id)}
+              accessibilityLabel="Subir"
+            >
+              <Text style={styles.iconBtnText}>▲</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => onMoveDown(item.id)}
+            accessibilityLabel="Bajar"
+          >
+            <Text style={styles.iconBtnText}>▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => onDelete(item.id)}
+            accessibilityLabel="Eliminar"
+          >
+            <Text style={styles.deleteIcon}>✕</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+
+      {/* Fila 2: Info del intermedio */}
+      <View style={styles.rowBottom}>
+        <View style={styles.loopBadge}>
+          <Text style={[styles.loopText, loopWarning && styles.loopWarn]}>
+            {loopWarning ? '⚠ ' : ''}{loopText}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: tokens.spacing.md,
-    borderWidth: 1,
-    borderColor: colors.dark.border,
-    borderRadius: tokens.borderRadius.md,
-    backgroundColor: colors.dark.surfaceElevated,
-    minHeight: tokens.touchTarget.comfortable,
-    gap: tokens.spacing.md,
-  },
-  rowTapArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: tokens.spacing.md,
-    minWidth: 0,
+    flexDirection: 'column',
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    backgroundColor: colors.dark.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.dark.border,
   },
   mainMissing: {
-    borderColor: colors.dark.warning,
     backgroundColor: 'rgba(251, 191, 36, 0.06)',
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+  },
+  rowBottom: {
+    marginTop: 2,
+    paddingLeft: 62,
+  },
   positionBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.dark.surface,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.dark.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -148,57 +154,70 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   positionText: {
-    color: colors.dark.accent,
-    fontSize: tokens.fontSize.md,
+    color: colors.dark.textMuted,
+    fontSize: 11,
     fontWeight: '700',
   },
-  info: {
+  musicIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  musicIconText: {
+    color: colors.dark.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  titleArea: {
     flex: 1,
     minWidth: 0,
   },
   title: {
     color: colors.dark.text,
     fontSize: tokens.fontSize.md,
-    fontWeight: '700',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.sm,
-    marginTop: tokens.spacing.xs,
-  },
-  meta: {
-    color: colors.dark.textMuted,
-    fontSize: tokens.fontSize.sm,
-  },
-  metaMain: {
-    color: colors.dark.textSecondary,
     fontWeight: '600',
   },
-  metaWarn: {
-    color: colors.dark.warning,
-    fontWeight: '700',
+  artist: {
+    color: colors.dark.textMuted,
+    fontSize: tokens.fontSize.sm,
+    marginTop: 1,
   },
   actions: {
     flexDirection: 'row',
     flexShrink: 0,
-    gap: tokens.spacing.xs,
+    gap: 2,
   },
-  moveButton: {
-    width: 44,
-    minWidth: 44,
-    minHeight: tokens.touchTarget.min,
-    paddingHorizontal: 0,
+  iconBtn: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 6,
   },
-  actionButton: {
-    minHeight: tokens.touchTarget.min,
-    minWidth: 60,
-    paddingHorizontal: tokens.spacing.sm,
+  iconBtnText: {
+    color: colors.dark.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  deleteButton: {
-    backgroundColor: 'rgba(248, 113, 113, 0.10)',
-    borderWidth: 1,
-    borderColor: colors.dark.danger,
+  deleteIcon: {
+    color: colors.dark.danger,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  loopBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loopText: {
+    color: colors.dark.textMuted,
+    fontSize: 12,
+  },
+  loopWarn: {
+    color: colors.dark.warning,
+    fontWeight: '600',
   },
 });

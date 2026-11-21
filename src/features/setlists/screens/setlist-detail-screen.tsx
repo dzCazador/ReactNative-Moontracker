@@ -423,7 +423,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: tokens.spacing.xl,
-    gap: tokens.spacing.md,
   },
   addButton: {
     marginTop: tokens.spacing.md,
@@ -513,7 +512,7 @@ function MetadataModal({
           />
           <View style={styles.modalButtons}>
             <LargeButton title="Cancelar" style={styles.modalCancel} onPress={onCancel} />
-            <LargeButton title="Guardar" style={styles.modalSave} onPress={onSave} />
+            <LargeButton title="Guardar" style={styles.modalSave} light onPress={onSave} />
           </View>
         </Card>
       </View>

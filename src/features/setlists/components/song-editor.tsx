@@ -239,6 +239,7 @@ export function SongEditor({
             <LargeButton
               title="Guardar canción"
               style={styles.saveButton}
+              light
               onPress={handleSave}
               disabled={submitButtonDisabled}
             />

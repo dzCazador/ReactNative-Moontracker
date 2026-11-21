@@ -10,6 +10,7 @@ import { Card } from '@/shared/components/card';
 import { Skeleton } from '@/shared/components/skeleton';
 import { ConfirmDialog } from '@/shared/components/confirm-dialog';
 import { ImportAudioModal } from '@/shared/components/import-audio-modal';
+import { BatchImportModal } from '@/shared/components/batch-import-modal';
 import {
   copyFileToAppStorageAsync,
   deleteFileAsync,
@@ -27,6 +28,7 @@ export default function AudioLibraryScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [importVisible, setImportVisible] = useState(false);
+  const [batchImportVisible, setBatchImportVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AudioAsset | null>(null);
 
@@ -59,6 +61,10 @@ export default function AudioLibraryScreen() {
 
   const handleImport = async () => {
     setImportVisible(true);
+  };
+
+  const handleBatchImport = async () => {
+    setBatchImportVisible(true);
   };
 
   const handleImported = (_audio: { id: string; display_name: string; type: string }) => {
@@ -285,13 +291,22 @@ export default function AudioLibraryScreen() {
         )}
       </ScrollView>
 
-      <LargeButton title="+ Importar audio" style={styles.fab} onPress={handleImport} />
+      <LargeButton title="+ Importar audio" style={styles.fab} light onPress={handleImport} />
+      <LargeButton title="📥 Por lotes" style={styles.fabSecondary} light onPress={handleBatchImport} />
 
       {importVisible && (
         <ImportAudioModal
           visible={importVisible}
           onImported={handleImported}
           onCancel={() => setImportVisible(false)}
+        />
+      )}
+
+      {batchImportVisible && (
+        <BatchImportModal
+          visible={batchImportVisible}
+          onImported={handleImported}
+          onCancel={() => setBatchImportVisible(false)}
         />
       )}
 
@@ -465,9 +480,16 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: tokens.spacing.lg,
-    left: tokens.spacing.lg,
+    right: tokens.spacing.lg,
     minWidth: 140,
     backgroundColor: colors.dark.accent,
+  },
+  fabSecondary: {
+    position: 'absolute',
+    bottom: tokens.spacing.lg,
+    left: tokens.spacing.lg,
+    minWidth: 110,
+    backgroundColor: colors.dark.success,
   },
   errorBlock: {
     alignItems: 'center',
