@@ -24,7 +24,7 @@ import type {
   PlaybackError,
   PlaybackPhase,
 } from '@/features/audio/types';
-import { createTrackPlayerAdapter } from '@/features/audio/engine';
+import { createExpoAudioAdapter } from '@/features/audio/engine';
 import {
   resolveEffectiveIntermediateAudio,
   type IntermediateResolutionContext,
@@ -84,7 +84,7 @@ export class LivePlaybackController {
   private targetVolume = 1;
 
   constructor(deps: LivePlaybackControllerDeps = {}) {
-    this.engine = deps.audioEngine ?? createTrackPlayerAdapter();
+    this.engine = deps.audioEngine ?? createExpoAudioAdapter();
     this.fadeConfig = deps.fadeConfig ?? DEFAULT_FADE_CONFIG;
     this.queue = new CommandQueue({ debounceMs: deps.debounceMs ?? DEBOUNCE_MS });
     this.fade = new FadeController({

@@ -6,7 +6,7 @@
  * and the controller; nothing else touches react-native-track-player directly.
  */
 
-export { createTrackPlayerAdapter, TrackPlayerAdapter } from './engine';
+export { createExpoAudioAdapter, ExpoAudioAdapter } from './engine';
 export type { AudioEngine } from './engine';
 
 export {

@@ -36,6 +36,7 @@ const config: ExpoConfig = {
   plugins: [
     'expo-sqlite',
     'expo-document-picker',
+    ['expo-audio', { enableBackgroundPlayback: true }],
   ],
   experiments: {
     tsconfigPaths: true,

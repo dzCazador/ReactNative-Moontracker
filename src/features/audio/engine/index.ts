@@ -2,7 +2,7 @@
  * Audio engine barrel.
  */
 
-export { createTrackPlayerAdapter, TrackPlayerAdapter } from './track-player-adapter';
+export { createExpoAudioAdapter, ExpoAudioAdapter } from './expo-audio-adapter';
 export type { AudioEngine } from '@/features/audio/types';
 export type {
   DeckId,
