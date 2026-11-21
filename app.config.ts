@@ -1,8 +1,8 @@
 import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'backTracker',
-  slug: 'backTracker',
+  name: 'MoonTracker',
+  slug: 'moonTracker',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -14,10 +14,10 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.backtracker.app',
+    bundleIdentifier: 'com.moonTracker.app',
   },
   android: {
-    package: 'com.backtracker.app',
+    package: 'com.moonTracker.app',
     adaptiveIcon: {
       backgroundColor: '#0f172a',
       foregroundImage: './assets/android-icon-foreground.png',
