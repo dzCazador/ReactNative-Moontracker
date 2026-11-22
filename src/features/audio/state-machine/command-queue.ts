@@ -37,11 +37,9 @@ export class CommandQueue {
     const lockedUntil = this.debounceWindows.get(name) ?? 0;
 
     if (now < lockedUntil) {
-      return Promise.reject(
-        new Error(
-          `CommandQueue: command "${name}" blocked by debounce window (${Math.ceil((lockedUntil - now) / 1000)}s remaining)`
-        )
-      );
+      // Silently resolve instead of rejecting to avoid unhandled promise errors.
+      // The command is suppressed by the debounce window.
+      return Promise.resolve();
     }
 
     const run = async (): Promise<void> => {

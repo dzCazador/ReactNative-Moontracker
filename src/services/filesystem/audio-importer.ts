@@ -34,6 +34,8 @@ export const AUDIO_PICKER_MIME_TYPES = [
   'audio/flac',
   'audio/mpeg',
   'audio/aac',
+  'audio/mp4',
+  'audio/x-m4a',
 ];
 
 export interface ImportAudioOptions {
@@ -75,6 +77,8 @@ function isSupportedMimeType(mimeType: string): boolean {
     lower.includes('mpeg') ||
     lower.includes('mp3') ||
     lower.includes('aac') ||
+    lower.includes('mp4') ||
+    lower.includes('m4a') ||
     lower.includes('audio/')
   );
 }

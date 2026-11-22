@@ -283,6 +283,7 @@ export class SetlistItemRepository {
         ma.duration_ms AS main_audio_duration_ms, ma.file_size_bytes AS main_audio_file_size_bytes,
         ma.sample_rate AS main_audio_sample_rate, ma.channels AS main_audio_channels,
         ma.loudness_hint_db AS main_audio_loudness_hint_db, ma.is_missing AS main_audio_is_missing,
+        ma.artist AS main_audio_artist, ma.album AS main_audio_album,
         ma.created_at AS main_audio_created_at, ma.updated_at AS main_audio_updated_at,
         ia.id AS intermediate_audio_id_join, ia.type AS intermediate_audio_type,
         ia.display_name AS intermediate_audio_display_name,
@@ -294,6 +295,7 @@ export class SetlistItemRepository {
         ia.duration_ms AS intermediate_audio_duration_ms, ia.file_size_bytes AS intermediate_audio_file_size_bytes,
         ia.sample_rate AS intermediate_audio_sample_rate, ia.channels AS intermediate_audio_channels,
         ia.loudness_hint_db AS intermediate_audio_loudness_hint_db, ia.is_missing AS intermediate_audio_is_missing,
+        ia.artist AS intermediate_audio_artist, ia.album AS intermediate_audio_album,
         ia.created_at AS intermediate_audio_created_at, ia.updated_at AS intermediate_audio_updated_at
       FROM setlist_items si
       INNER JOIN audio_assets ma ON ma.id = si.main_audio_id

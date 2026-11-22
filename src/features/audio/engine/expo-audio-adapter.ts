@@ -112,6 +112,7 @@ export class ExpoAudioAdapter implements AudioEngine {
   private listeners = new Set<(event: AudioEngineEvent) => void>();
   private options: AudioEngineOptions = {};
   private positionIntervals = new Map<DeckId, ReturnType<typeof setInterval>>();
+  private trackEndedEmitted = false;
 
   private emit(
     type: AudioEngineEventType,
@@ -171,17 +172,23 @@ export class ExpoAudioAdapter implements AudioEngine {
           this.emit('progress', { position: positionSec, duration: durationSec }, deck);
 
           // Detect track end for deck A (one-shot) -> emit track-ended
+          // expo-audio sets isLoaded=false when playback finishes, so we can't
+          // rely on isLoaded. Instead, check if position reached duration and
+          // the player is no longer playing (or isLoaded became false).
           if (
             deck === 'A' &&
             durationSec != null &&
             durationSec > 0 &&
-            player.isLoaded &&
-            !player.playing &&
-            positionSec >= durationSec - 1
+            !this.trackEndedEmitted &&
+            (positionSec >= durationSec - 0.5 || (!player.isLoaded && positionSec > 0))
           ) {
-            this.stopPositionPolling(deck);
-            this.setDeckState(deck, { state: 'stopped' });
-            this.emit('track-ended', undefined, deck);
+            // Only emit if we were actually playing (position advanced significantly)
+            if (positionSec >= durationSec - 2) {
+              this.trackEndedEmitted = true;
+              this.stopPositionPolling(deck);
+              this.setDeckState(deck, { state: 'stopped' });
+              this.emit('track-ended', undefined, deck);
+            }
           }
         } catch (error) {
           logger.warn('[ExpoAudioAdapter] poll error', { error: String(error) });
@@ -222,7 +229,6 @@ export class ExpoAudioAdapter implements AudioEngine {
       this._isSetup = true;
       this.setupError = null;
 
-      logger.audio('[ExpoAudioAdapter] setup completed');
       this.emit('setup-completed');
     } catch (error) {
       this._isSetup = false;
@@ -279,10 +285,13 @@ export class ExpoAudioAdapter implements AudioEngine {
     }
 
     try {
-      logger.audio('[ExpoAudioAdapter] load start', { deck, trackId: track.id, uri: track.uri });
       player.replace(track.uri as any);
       player.loop = deck === 'B' && track.loop;
       this.activeDeck = deck;
+      // Reset track ended flag when loading a new track
+      if (deck === 'A') {
+        this.trackEndedEmitted = false;
+      }
       this.setDeckState(deck, {
         track,
         state: 'loading',
@@ -292,12 +301,10 @@ export class ExpoAudioAdapter implements AudioEngine {
       const otherDeck = deck === 'A' ? 'B' : 'A';
       this.setDeckState(otherDeck, { state: 'idle' });
 
-      logger.audio('[ExpoAudioAdapter] load completed', { deck, trackId: track.id });
       this.emit('track-changed', { trackId: track.id, deck, uri: track.uri }, deck, track.id);
 
       this.startPositionPolling(deck);
     } catch (error) {
-      logger.audio('[ExpoAudioAdapter] load error', { deck, trackId: track.id, error: String(error) });
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });
       this.setError(engineError);
@@ -330,7 +337,6 @@ export class ExpoAudioAdapter implements AudioEngine {
     try {
       player.play();
       this.setDeckState(deck, { state: 'playing' });
-      logger.audio('[ExpoAudioAdapter] play', { deck });
     } catch (error) {
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });
@@ -355,7 +361,6 @@ export class ExpoAudioAdapter implements AudioEngine {
     try {
       player.pause();
       this.setDeckState(deck, { state: 'paused' });
-      logger.audio('[ExpoAudioAdapter] pause', { deck });
     } catch (error) {
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });
@@ -370,15 +375,18 @@ export class ExpoAudioAdapter implements AudioEngine {
     const player = this.getPlayer(deck);
     if (player) {
       try {
+        player.loop = false;
         player.pause();
         player.seekTo(0);
       } catch (error) {
-        logger.warn('[ExpoAudioAdapter] stop failed', { error });
+        // Ignore stop errors.
       }
     }
     this.setDeckState(deck, { state: 'stopped', positionSec: 0 });
     this.activeDeck = null;
-    this.emit('remote-stop', undefined, deck);
+    // IMPORTANT: do not emit 'remote-stop' here. This is an internal command.
+    // Emitting it makes the controller call its global stop(), which stops both
+    // decks and emits the event again (feedback loop).
   }
 
   async seek(deck: DeckId, positionSec: number): Promise<void> {
@@ -394,8 +402,11 @@ export class ExpoAudioAdapter implements AudioEngine {
     const player = this.getPlayer(deck);
     if (!player) return;
     try {
-      player.seekTo(Math.max(0, positionSec));
-      this.setDeckState(deck, { positionSec: Math.max(0, positionSec) });
+      const target = Math.max(0, positionSec);
+      await player.seekTo(target);
+      this.setDeckState(deck, { positionSec: target });
+      // Restart polling so duration/progress keep updating after a seek.
+      this.startPositionPolling(deck);
     } catch (error) {
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });
@@ -407,6 +418,9 @@ export class ExpoAudioAdapter implements AudioEngine {
   async setVolume(level: number): Promise<void> {
     const clamped = Math.min(Math.max(level, 0), 1);
     this.volume = clamped;
+    // Fades must be predictable: apply volume to BOTH decks. The audible deck
+    // can change during a crossfade, so restricting it to activeDeck left the
+    // previous deck audible.
     for (const player of this.players.values()) {
       try {
         player.volume = clamped;
@@ -414,7 +428,6 @@ export class ExpoAudioAdapter implements AudioEngine {
         // Ignore per-player volume errors.
       }
     }
-    logger.audio('[ExpoAudioAdapter] setVolume', { level: clamped });
   }
 
   async getVolume(): Promise<number> {
@@ -436,7 +449,6 @@ export class ExpoAudioAdapter implements AudioEngine {
     try {
       player.loop = enabled;
       this.setDeckState(deck, { state: this.deckStateFor(deck) });
-      logger.audio('[ExpoAudioAdapter] setLoop', { deck, enabled });
     } catch (error) {
       const engineError = normalizeEngineError(error);
       this.setDeckState(deck, { state: 'error' });

@@ -153,8 +153,17 @@ export function ImportAudioModal({
             <View style={styles.stepsGroup}>
               <Text style={styles.sectionTitle}>Seleccionar archivo</Text>
               <Text style={styles.sectionHint}>
-                Formatos admitidos: .wav, .ogg, .flac (y .mp3/.aac si el proveedor lo permite).
+                Formatos admitidos: .wav, .ogg, .flac, .mp3, .m4a, .aac
               </Text>
+              <View style={styles.sourceSelector}>
+                <Text style={styles.sectionTitle}>Tipo de audio</Text>
+                <ModeToggle
+                  value={sourceType}
+                  onChange={setSourceType}
+                  mainLabel="Pista principal"
+                  loopLabel="Loop intermedio"
+                />
+              </View>
               <LargeButton
                 title="Seleccionar archivo de audio"
                 style={styles.pickButton}

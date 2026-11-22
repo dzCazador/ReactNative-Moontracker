@@ -70,6 +70,7 @@ export class LivePlaybackController {
 
   private prepared: PreparedSetlist | null = null;
   private globalDefaultAudioId: string | null = null;
+  private globalDefaultAudio: AudioAsset | null = null;
 
   private phase: PlaybackPhase = 'idle';
   private currentItemId: string | null = null;
@@ -103,13 +104,16 @@ export class LivePlaybackController {
   async loadSetlist(
     setlist: Setlist,
     items: SetlistItemWithAudio[],
-    globalDefaultAudioId: string | null = null
+    globalDefaultAudioId: string | null = null,
+    globalDefaultAudio: AudioAsset | null = null
   ): Promise<void> {
     const start = MONOTONIC_NOW();
     await this.queue.enqueue('LOAD_SETLIST', async () => {
       this.isStopping = false;
       this.mainEndedHandled = false;
+      this.targetVolume = 1;
       this.globalDefaultAudioId = globalDefaultAudioId;
+      this.globalDefaultAudio = globalDefaultAudio;
 
       if (items.length === 0) {
         this.setPhase('idle');
@@ -130,7 +134,6 @@ export class LivePlaybackController {
       if (!engineState.isSetup && !engineState.setupError) {
         try {
           await this.engine.setup();
-          logger.audio('[LivePlaybackController] engine setup completed');
         } catch (error) {
           this.setErrorState(
             'INIT_FAILED',
@@ -153,25 +156,33 @@ export class LivePlaybackController {
         this.publishStatus();
         this.audioTracerLog('LOAD_SETLIST', 'idle', 'error', items[0].id, null, 'error');
         const latency = MONOTONIC_NOW() - start;
-        logger.audio('[LivePlaybackController] loadSetlist failed', {
-          setlistId: setlist.id,
-          itemCount: items.length,
-          latencyMs: latency,
-          error: String(error),
-        });
         return;
       }
 
-      this.setPhase('prepared');
+      // Standby: the intermediate loop plays first, never the main song.
+      // SIGUIENTE (enabled during the loop) is what starts the main track.
+      const firstLoop = this.resolveLoopForItem(items[0]);
+      if (firstLoop.audio) {
+        try {
+          await this.loadLoopOnDeckB(firstLoop.audio);
+          await this.startStandbyLoop();
+        } catch (error) {
+          logger.warn('[LivePlaybackController] standby loop failed', { error });
+          this.setPhase('silent-waiting');
+        }
+      } else {
+        this.setPhase('silent-waiting');
+      }
       this.publishStatus();
-      this.audioTracerLog('LOAD_SETLIST', 'idle', 'prepared', items[0].id, null, 'ok');
-      const latency = MONOTONIC_NOW() - start;
-      this.engine.getState(); // touch state
-      logger.audio('[LivePlaybackController] loadSetlist', {
-        setlistId: setlist.id,
-        itemCount: items.length,
-        latencyMs: latency,
-      });
+      this.audioTracerLog(
+        'LOAD_SETLIST',
+        'idle',
+        this.phase,
+        items[0].id,
+        'B',
+        'ok',
+        MONOTONIC_NOW() - start
+      );
     });
   }
 
@@ -208,8 +219,19 @@ export class LivePlaybackController {
       const items = prepared.items;
 
       // Special case: first trigger from 'prepared' state plays the current
-      // song (index 0) instead of skipping to the next one.
-      if (this.phase === 'prepared' || this.phase === 'idle' || this.phase === 'silent-waiting') {
+      // song (index 0) instead of skipping to the next one. Also handle
+      // 'playing-loop' and 'silent-waiting' where the index already advanced
+      // but the main track hasn't started yet.
+      if (
+        this.phase === 'prepared' ||
+        this.phase === 'idle' ||
+        this.phase === 'silent-waiting' ||
+        this.phase === 'playing-loop'
+      ) {
+        // Fade out the current loop before starting the main track
+        if (this.phase === 'playing-loop') {
+          await this.fadeOutCurrentLoop();
+        }
         const current = items[currentIndex];
         try {
           await this.loadAndPlayMain(current);
@@ -229,10 +251,6 @@ export class LivePlaybackController {
           'ok',
           latency
         );
-        logger.audio('[LivePlaybackController] triggerNext (first play)', {
-          itemId: current.id,
-          latencyMs: latency,
-        });
         return;
       }
 
@@ -305,19 +323,16 @@ export class LivePlaybackController {
         'ok',
         latency
       );
-      logger.audio('[LivePlaybackController] triggerNext', {
-        fromItem: currentItem.id,
-        toItem: nextItem.id,
-        loopReason: nextLoop.reason,
-        latencyMs: latency,
-      });
     });
   }
 
   async stop(): Promise<void> {
+    if (this.isStopping) {
+      return;
+    }
+    this.isStopping = true;
     const start = MONOTONIC_NOW();
     await this.queue.enqueue('STOP', async () => {
-      this.isStopping = true;
       this.mainEndedHandled = true;
       this.fade.cancel();
       try {
@@ -333,6 +348,14 @@ export class LivePlaybackController {
       const latency = MONOTONIC_NOW() - start;
       this.audioTracerLog('STOP', this.phase, 'stopped', null, null, 'ok', latency);
     });
+    // Reset the stopping flag after the command completes
+    this.isStopping = false;
+  }
+
+  async seek(deck: DeckId, positionSec: number): Promise<void> {
+    if (!this.prepared) return;
+    await this.engine.seek(deck, positionSec);
+    this.publishStatus();
   }
 
   async recover(): Promise<void> {
@@ -419,7 +442,11 @@ export class LivePlaybackController {
       positionSec: engineState.deckA.positionSec,
       durationSec: engineState.deckA.durationSec,
       volume: engineState.volume,
-      isLastSong: nextIndex >= items.length,
+      // isLastSong is true only when we're playing the last song (playing-main
+      // with currentIndex === items.length - 1) or when stopped.
+      isLastSong:
+        (this.phase === 'playing-main' && currentIndex === items.length - 1) ||
+        this.phase === 'stopped',
       error: engineState.error
         ? {
             code: engineState.error.code,
@@ -469,6 +496,10 @@ export class LivePlaybackController {
   }): void {
     switch (event.type) {
       case 'progress': {
+        // The seek bar always reflects the main track (deck A). Loop progress
+        // from deck B must not overwrite its duration, otherwise seeking uses
+        // the loop length instead of the song length.
+        if (event.deck && event.deck !== 'A') break;
         // Update position/duration in the store
         const position = event.payload?.position as number;
         const duration = event.payload?.duration as number | null;
@@ -509,7 +540,9 @@ export class LivePlaybackController {
         break;
       }
       case 'remote-stop': {
-        void this.stop();
+        // Reserved for genuine external stop events (media button, headset).
+        // The adapter no longer emits this from its own stop() to avoid a
+        // feedback loop that killed the main track right after it started.
         break;
       }
       default:
@@ -548,6 +581,12 @@ export class LivePlaybackController {
     if (!main || main.is_missing) {
       throw new Error(`Main audio missing for item ${item.id}`);
     }
+    // Ensure deck B is fully stopped before playing deck A
+    try {
+      await this.engine.stop('B');
+    } catch {
+      // Ignore.
+    }
     const track: AudioTrack = {
       id: item.id,
       assetId: main.id,
@@ -559,7 +598,8 @@ export class LivePlaybackController {
     };
     await this.engine.load(track, 'A');
     await this.engine.setLoop('A', false);
-    await this.engine.setVolume(this.targetVolume);
+    this.targetVolume = 1;
+    await this.engine.setVolume(1);
     await this.engine.play('A');
   }
 
@@ -581,19 +621,24 @@ export class LivePlaybackController {
 
   private async fadeOutCurrentLoop(): Promise<void> {
     const item = this.prepared?.items[this.prepared.currentIndex];
-    const loop = item?.intermediate_audio;
-    if (!loop) {
-      // Nothing looping; ensure deck B volume is 0.
-      await this.engine.setVolume(0);
-      return;
-    }
     const fade = resolveFadeDurations(
-      { fadeOutLoopMs: item.fade_out_loop_ms ?? null, fadeInLoopMs: null },
+      { fadeOutLoopMs: item?.fade_out_loop_ms ?? null, fadeInLoopMs: null },
       this.fadeConfig
     );
     await this.fade.fadeTo(0, fade.fadeOutMs);
     this.targetVolume = 0;
+    // Always stop deck B. The audible loop may come from the item, the setlist
+    // default or the global default, so item.intermediate_audio is not a
+    // reliable indicator of what is actually playing.
     await this.engine.stop('B');
+    await this.engine.setVolume(0);
+  }
+
+  private async startStandbyLoop(): Promise<void> {
+    this.targetVolume = 1;
+    await this.engine.setVolume(1);
+    await this.engine.play('B');
+    this.setPhase('playing-loop');
   }
 
   private async fadeInNextLoop(asset: AudioAsset): Promise<void> {
@@ -701,6 +746,20 @@ export class LivePlaybackController {
     // assetsById built from available intermediate_audio on the item.
     if (item.intermediate_audio) {
       ctx.assetsById[item.intermediate_audio.id] = item.intermediate_audio;
+    }
+    // Add global default audio to assetsById for GLOBAL_DEFAULT resolution
+    if (this.globalDefaultAudio) {
+      ctx.assetsById[this.globalDefaultAudio.id] = this.globalDefaultAudio;
+    }
+    // Add setlist default audio if available in items
+    const setlistDefaultId = this.prepared?.setlist.default_intermediate_audio_id;
+    if (setlistDefaultId) {
+      const setlistDefaultItem = this.prepared?.items.find(
+        (i) => i.intermediate_audio?.id === setlistDefaultId
+      );
+      if (setlistDefaultItem?.intermediate_audio) {
+        ctx.assetsById[setlistDefaultId] = setlistDefaultItem.intermediate_audio;
+      }
     }
     const result = resolveEffectiveIntermediateAudio(ctx);
     return { audio: result.audio ?? null, reason: result.reason };

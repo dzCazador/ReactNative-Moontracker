@@ -35,7 +35,7 @@ function requireNativeFS(): void {
 /**
  * Extensiones de audio admitidas para importación.
  */
-export const SUPPORTED_EXTENSIONS: readonly string[] = ['.wav', '.ogg', '.flac', '.mp3'];
+export const SUPPORTED_EXTENSIONS: readonly string[] = ['.wav', '.ogg', '.flac', '.mp3', '.m4a', '.aac'];
 
 export type SupportedAudioExtension = (typeof SUPPORTED_EXTENSIONS)[number];
 

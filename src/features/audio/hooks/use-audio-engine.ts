@@ -4,6 +4,7 @@
  */
 
 import { useCallback } from 'react';
+import type { DeckId } from '@/features/audio/types';
 import {
   usePlaybackStatus,
   usePlaybackLogs,
@@ -28,8 +29,9 @@ export function useLivePlayback() {
     (
       setlist: Parameters<typeof livePlaybackController.loadSetlist>[0],
       items: Parameters<typeof livePlaybackController.loadSetlist>[1],
-      globalDefaultAudioId?: Parameters<typeof livePlaybackController.loadSetlist>[2]
-    ) => livePlaybackController.loadSetlist(setlist, items, globalDefaultAudioId),
+      globalDefaultAudioId?: Parameters<typeof livePlaybackController.loadSetlist>[2],
+      globalDefaultAudio?: Parameters<typeof livePlaybackController.loadSetlist>[3]
+    ) => livePlaybackController.loadSetlist(setlist, items, globalDefaultAudioId, globalDefaultAudio),
     []
   );
 
@@ -37,6 +39,7 @@ export function useLivePlayback() {
   const triggerNext = useCallback(() => livePlaybackController.triggerNext(), []);
   const stop = useCallback(() => livePlaybackController.stop(), []);
   const recover = useCallback(() => livePlaybackController.recover(), []);
+  const seek = useCallback((deck: DeckId, positionSec: number) => livePlaybackController.seek(deck, positionSec), []);
 
   return {
     status,
@@ -48,6 +51,7 @@ export function useLivePlayback() {
     prepare,
     triggerNext,
     stop,
+    seek,
     recover,
     getStatus: livePlaybackController.getStatus.bind(livePlaybackController),
     getEngineState: livePlaybackController.getEngineState.bind(livePlaybackController),

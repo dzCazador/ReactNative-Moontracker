@@ -4,11 +4,12 @@
  * Pantalla de actuación con alto contraste, controles grandes y protecciones
  * anti-accidentes para el baterista.
  */
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, BackHandler } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, BackHandler, SafeAreaView, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useKeepAwake } from 'expo-keep-awake';
+import { StatusBar } from 'expo-status-bar';
 import { SetlistRepository } from '@/data/db/repositories/setlist-repository';
 import { SetlistItemRepository } from '@/data/db/repositories/setlist-item-repository';
 import { AudioAssetRepository } from '@/data/db/repositories/audio-asset-repository';
@@ -49,7 +50,24 @@ export default function LiveScreen() {
     loadSetlist,
     triggerNext,
     stop,
+    seek,
   } = useLivePlayback();
+
+  const [seekLocked, setSeekLocked] = useState(true);
+  const [barWidth, setBarWidth] = useState(0);
+
+  const handleSeek = useCallback((e: any) => {
+    if (seekLocked || !status.durationSec || status.durationSec <= 0) return;
+    const locationX = e.nativeEvent.locationX;
+    if (barWidth <= 0) return;
+    const fraction = Math.max(0, Math.min(1, locationX / barWidth));
+    const positionSec = fraction * status.durationSec;
+    seek('A', positionSec);
+  }, [seekLocked, status.durationSec, barWidth, seek]);
+
+  const progress = status.durationSec && status.durationSec > 0
+    ? (status.positionSec / status.durationSec) * 100
+    : 0;
 
   // Activar wake lock
   useKeepAwake();
@@ -77,16 +95,24 @@ export default function LiveScreen() {
         const live = await itemRepo.loadSetlistForLive(setlist.id);
         const globalDefault = await settingsRepo.getSetting<string | null>(GLOBAL_INTERMEDIATE_SETTING_KEY);
         
+        // Load the global default audio asset if configured
+        let globalDefaultAudio: AudioAsset | null = null;
+        if (globalDefault) {
+          globalDefaultAudio = await new AudioAssetRepository().getById(globalDefault);
+        }
+        
         setSelectedSetlist(setlist);
         setItems(live.items);
         setGlobalDefaultAudioId(globalDefault ?? null);
+        isStoppingRef.current = false; // Reset stopping flag
         setActive(true);
 
         // Cargar la setlist en el controlador
         await loadSetlist(
           setlist,
           live.items,
-          globalDefault ?? undefined
+          globalDefault ?? undefined,
+          globalDefaultAudio ?? undefined
         );
       } catch (err) {
         Alert.alert('Error', 'No se pudo iniciar la actuación');
@@ -96,7 +122,10 @@ export default function LiveScreen() {
     [loadSetlist, setActive]
   );
 
+  const isStoppingRef = useRef(false);
+
   const handleEndPerformance = useCallback(() => {
+    if (isStoppingRef.current) return;
     Alert.alert(
       'Finalizar actuación',
       '¿Seguro que querés salir del Modo En Vivo?',
@@ -106,7 +135,10 @@ export default function LiveScreen() {
           text: 'Finalizar',
           style: 'destructive',
           onPress: async () => {
+            if (isStoppingRef.current) return;
+            isStoppingRef.current = true;
             await stop();
+            isStoppingRef.current = false;
             setActive(false);
             setSelectedSetlist(null);
             setItems([]);
@@ -115,6 +147,27 @@ export default function LiveScreen() {
       ]
     );
   }, [stop, setActive]);
+
+  const handleEmergencyStop = useCallback(() => {
+    if (isStoppingRef.current) return;
+    Alert.alert(
+      'Detener reproducción',
+      '¿Seguro que querés detener la actuación?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Detener',
+          style: 'destructive',
+          onPress: async () => {
+            if (isStoppingRef.current) return;
+            isStoppingRef.current = true;
+            await stop();
+            isStoppingRef.current = false;
+          },
+        },
+      ]
+    );
+  }, [stop]);
 
   // Intercept back button
   useEffect(() => {
@@ -137,17 +190,19 @@ export default function LiveScreen() {
 
   if (!isActive || !selectedSetlist) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>← Volver</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Modo En Vivo</Text>
-          <Text style={styles.subtitle}>Seleccioná una setlist para comenzar</Text>
-        </View>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              <Text style={styles.backText}>← Volver</Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>Modo En Vivo</Text>
+            <Text style={styles.subtitle}>Seleccioná una setlist para comenzar</Text>
+          </View>
 
         {setlists.length === 0 ? (
           <View style={styles.emptyState}>
@@ -172,6 +227,7 @@ export default function LiveScreen() {
           </View>
         )}
       </View>
+      </SafeAreaView>
     );
   }
 
@@ -180,30 +236,33 @@ export default function LiveScreen() {
   const nextItem = items.find((i) => i.id === status.nextItemId);
   const currentIndex = items.findIndex((i) => i.id === status.currentItemId);
 
-  const progress = status.durationSec && status.durationSec > 0
-    ? (status.positionSec / status.durationSec) * 100
-    : 0;
-
   const phaseLabel = getPhaseLabel(phase);
   const isTransitioning = phase === 'fading-out' || phase === 'fading-in';
+  // SIGUIENTE is only available while a standby loop is running (or waiting
+  // silently when no loop is configured). It is disabled during the main song.
+  const canAdvance = phase === 'playing-loop' || phase === 'silent-waiting';
+  const isNextDisabled = isTransitioning || !canAdvance;
 
   return (
-    <View style={styles.container}>
-      {/* Header con info de setlist */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.setlistTitle}>{selectedSetlist.name}</Text>
-          <Text style={styles.songCounter}>
-            {currentIndex + 1} / {items.length}
-          </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="light" />
+      <View style={styles.container}>
+        {/* Header con info de setlist */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.setlistTitle}>{selectedSetlist.name}</Text>
+            <Text style={styles.songCounter}>
+              {currentIndex + 1} / {items.length}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleEndPerformance}
+            style={styles.endButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.endButtonText}>Salir</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={handleEndPerformance}
-          style={styles.endButton}
-        >
-          <Text style={styles.endButtonText}>Salir</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Indicador de fase */}
       <View style={[styles.phaseIndicator, isTransitioning && styles.phaseTransitioning]}>
@@ -214,7 +273,7 @@ export default function LiveScreen() {
       <View style={styles.currentSongArea}>
         <Text style={styles.currentSongLabel}>
           {phase === 'playing-main' ? '🔊 SONANDO' :
-           phase === 'prepared' || phase === 'playing-loop' ? '⏭ SIGUIENTE' :
+           phase === 'prepared' || phase === 'playing-loop' ? '⏭ PRÓXIMO TEMA' :
            phase === 'idle' ? '—' :
            phase === 'error' ? '⚠ ERROR' :
            phase === 'fading-out' || phase === 'fading-in' ? '🔄 TRANSICIÓN' :
@@ -223,19 +282,36 @@ export default function LiveScreen() {
         <Text style={styles.currentSongTitle} numberOfLines={2}>
           {phase === 'playing-main'
             ? currentItem?.song_title ?? '—'
-            : nextItem?.song_title ?? (status.isLastSong ? 'Fin de setlist' : '—')}
+            : currentItem?.song_title ?? (status.isLastSong ? 'Fin de setlist' : '—')}
         </Text>
-        {(phase === 'playing-main' ? currentItem?.artist : nextItem?.artist) && (
+        {(phase === 'playing-main' ? currentItem?.artist : currentItem?.artist) && (
           <Text style={styles.artistText}>
-            {phase === 'playing-main' ? currentItem?.artist : nextItem?.artist}
+            {phase === 'playing-main' ? currentItem?.artist : currentItem?.artist}
           </Text>
         )}
       </View>
 
       {/* Barra de progreso */}
       <View style={styles.progressArea}>
-        <View style={styles.progressBar}>
+        <TouchableOpacity
+          style={styles.progressBar}
+          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+          onPress={handleSeek}
+          activeOpacity={seekLocked ? 1 : 0.7}
+          disabled={seekLocked}
+        >
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </TouchableOpacity>
+        <View style={styles.lockRow}>
+          <TouchableOpacity
+            style={styles.lockButton}
+            onPress={() => setSeekLocked((prev) => !prev)}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.lockButtonText}>
+              {seekLocked ? '🔒 Bloqueado — tocar para desbloquear seek' : '🔓 Desbloqueado — tocar para bloquear'}
+            </Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.progressLabels}>
           <Text style={styles.timeText}>{formatTime(status.positionSec)}</Text>
@@ -263,39 +339,23 @@ export default function LiveScreen() {
 
       {/* Botón NEXT */}
       <TouchableOpacity
-        style={[
-          styles.nextButton,
-          (isTransitioning || phase === 'playing-main') && styles.nextButtonDisabled,
-        ]}
+        style={[styles.nextButton, isNextDisabled && styles.nextButtonDisabled]}
         onPress={handleTriggerNext}
-        disabled={isTransitioning || phase === 'playing-main'}
+        disabled={isNextDisabled}
         activeOpacity={0.6}
       >
         <Text style={styles.nextButtonText}>
-          {status.isLastSong ? 'FINALIZAR' : 'SIGUIENTE'}
+          {phase === 'playing-main' && status.isLastSong ? 'FINALIZAR' : 'SIGUIENTE'}
         </Text>
       </TouchableOpacity>
 
       {/* Botón de emergencia */}
       <TouchableOpacity
         style={styles.emergencyButton}
-        onLongPress={() => {
-          Alert.alert(
-            'Detener reproducción',
-            '¿Seguro que querés detener la actuación?',
-            [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Detener',
-                style: 'destructive',
-                onPress: () => stop(),
-              },
-            ]
-          );
-        }}
-        activeOpacity={0.6}
+        delayLongPress={1500}
+        onLongPress={handleEmergencyStop}
       >
-        <Text style={styles.emergencyText}>Mantener para detener</Text>
+        <Text style={styles.emergencyText}>Mantener 1.5s para detener</Text>
       </TouchableOpacity>
 
       {/* Error banner */}
@@ -319,6 +379,7 @@ export default function LiveScreen() {
         </View>
       )}
     </View>
+    </SafeAreaView>
   );
 }
 
@@ -370,6 +431,10 @@ function formatTime(seconds: number): string {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   container: {
     flex: 1,
     backgroundColor: '#000000',
@@ -380,9 +445,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: tokens.spacing.lg,
+    zIndex: 1,
+    minHeight: 40,
   },
   headerLeft: {
     flex: 1,
+    marginRight: tokens.spacing.md,
   },
   backButton: {
     padding: tokens.spacing.sm,
@@ -504,15 +572,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dark.surface,
     borderRadius: 6,
     overflow: 'hidden',
-    marginBottom: tokens.spacing.xs,
+    marginBottom: tokens.spacing.sm,
   },
   progressFill: {
     height: '100%',
     backgroundColor: colors.dark.accent,
   },
+  lockRow: {
+    marginBottom: tokens.spacing.sm,
+  },
+  lockButton: {
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    backgroundColor: colors.dark.surface,
+    borderWidth: 1,
+    borderColor: colors.dark.border,
+    borderRadius: tokens.borderRadius.md,
+    alignSelf: 'flex-start',
+    marginBottom: tokens.spacing.sm,
+  },
+  lockButtonText: {
+    color: colors.dark.text,
+    fontSize: tokens.fontSize.sm,
+    fontWeight: '600',
+  },
   progressLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: tokens.spacing.xs,
   },
   timeText: {
     color: colors.dark.textMuted,
